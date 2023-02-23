@@ -1,7 +1,7 @@
 # Anvi'o Phylogenomic Analysis
 #### Here you can find a walkthrough of how I used anvio to construct phylogenomic trees for Candidate phylum Hydrogenedentes MAGs.
 
->This analysis follows the phylogenomic tutorial created by the anvi'o team which can be found [here](https://merenlab.org/2017/06/07/phylogenomics/).
+>This analysis follows the phylogenomic tutorial created by the anvi'o team which can be found [here](https://merenlab.org/2017/06/07/phylogenomics/). For simplicity, I have also narrowed down the number of MAGs used in this demonstration. These can be found in the Hydrogenedentes fasta file repository. 
 ## Step 1: Download the latest version of anvio
 > I am running anvio version 7.1 in this analysis.
 
