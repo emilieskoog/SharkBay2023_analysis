@@ -1,4 +1,5 @@
 # Anvi'o Pangenomic, Functional Enrichment, and Metabolism  Analyses
+> This is a tutorial demonstrating how to create and visualize pangenomic, metabolic, and functional enrichment data. It uses a small number of genomes of the Candidate phylum Hydrogenedentota as part of the Skoog et al., 2023 study. 
 
 ### Step 1: Make a directory containing MAGs (or metagenomes see anvio's tutorials)
 
@@ -334,8 +335,8 @@ source activate anvio-7.1
 
 anvi-compute-functional-enrichment-in-pan -p PAN/GENOME-PAN.db \
                                           -g GENOMES.db \
-                                          --category-variable phylum \
-                                          --annotation-source KEGG_Module \
+                                          --category-variable Location \
+                                          --annotation-source COG20_PATHWAY \
                                           -o functional-enrichment-txt \
                                           --functional-occurrence-table-output FUNC_OCCURRENCE.TXT
 ```
@@ -344,7 +345,7 @@ Run it:
 ```sbatch anvi-compute-functional-enrichment-in-pan.sh```
 
 
-
+> I later used the resulting `functional-enrichment-txt` text file to generate a figure in R demonstrating functional enrichment of specific (COG) pathways within each sample site (location).
 
 ### Step 15: Estimate metabolisms of all MAGs
 
