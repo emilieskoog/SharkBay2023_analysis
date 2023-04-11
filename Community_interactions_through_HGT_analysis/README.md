@@ -1,55 +1,79 @@
-# Inferring community interaction through horizontal gene transfer (HGT) analysis
+# Visualizing horizontal gene transfer (HGT) events with an alluvial plot
 
-> This is a tutorial demonstrating how I used metaCHIP and iGraph to look at gene transfer events specifically between my Sumerlaeota and Hydrogenedentota MAGs and the rest of my microbial community from a pustular mat from Shark Bay, Australia.  
+> This is a tutorial demonstrating how I created an alluvial plot to visualize metaCHIP results.  
 
-### Step 1: MetaCHIP
+### Step 1: Run MetaCHIP
 
-You will need to give the program the location of your MAGs and a GTDBtk classification file (GTDB_classifications.tsv). See [here](https://github.com/songweizhi/MetaCHIP) for more information about installing and using MetaCHIP.
-```
-MetaCHIP PI -p SharkBay -r pc -t 12 -i /Users/location/of/my/MAGs -x fa -taxon /Users/location/of/GTDB_classifications.tsv
+See [this link](https://github.com/emilieskoog/SharkBay2023_analysis/tree/main/Community_interactions_through_HGT_analysis) for running metaCHIP.
 
-MetaCHIP BP -p SharkBay -r pc -pfr -t 12 
-```
+
 
 ### Step 2: Analyze and visualize in R 
 
-Now we take our output file of `SharkBay_c14_HGTs_PG.txt` and import it into R.
-```
-install.packages("igraph")
-install.packages("network")
-install.packages("sna")
-install.packages("ndtv")
-install.packages("GGally")
+Now we take the following files and import them into R for analyses:
 
+Output file from metaCHIP: `SharkBay_c14_HGTs_PG.txt`
+Gene annotation file: `metachip_class_HGTs_prokka_bacterial_results_PROKKA_08032022.csv`
+
+#### Set working directory and import into R
+
+```
 library(reshape)
 library(ggplot2)
 library(readr)
 library(tidyselect)
 library(tidyverse)
 library(dplyr)
-library(tidyr)
-library(igraph)
-library(tidygraph)
-library(ggraph)
-library(GGally)
-library(network)
-library(sna)
-library(ggplot2)
+library(ggalluvial)
+library(viridis)
+library(writexl)
+library(cowplot)
+setwd("/your/working/directory/")
 
-#set your working directory
-setwd("/Users/emilieskoog/Desktop/")
-
-#import files 
-
+metachip_prokka_class<- read.csv("metachip_class_HGTs_prokka_bacterial_results_PROKKA_08032022.csv", header = FALSE) 
 transfer_class <- read.delim("SharkBay_c14_HGTs_PG.txt") 
+```
+#### Split headers of annotation file
+```
+metachip_prokka_class_split_headers <- metachip_prokka_class %>% 
+  separate(V9, sep=";", into = c("locus_tag", "Name", "Protein",
+                                 "Product", "Function"), remove=TRUE, convert = FALSE)%>%
+  
+  data.frame
+```
+#### Clean file up
+```
+metachip_prokka_class_simplified <- metachip_prokka_class_split_headers[,-c(2:8, 10:11,13) ]
 
-View(transfer_class)
+metachip_prokka_class_simplified_cleaned <- metachip_prokka_class_simplified %>% 
+  mutate(locus_tag = gsub('ID=', '', locus_tag)) %>% 
+  mutate(Product = gsub('product=', '', Product)) %>% 
+  data.frame
+  
+colnames(metachip_prokka_class_simplified_cleaned)[1] <- "Gene_1" 
+  
+```
 
 
-####################CLASS##########################
+Now,  your `metachip_prokka_class_simplified_cleaned` file should look like:
+
+![](https://i.imgur.com/8K2K4AB.png)
+
+Your `transfer_class` file should look like:
+
+![](https://i.imgur.com/dA9JtFU.png)
 
 
-Determining_transfer_agent_1_class <- transfer_class %>%
+#### Merge files
+
+Merge these files by the `Gene_1` column
+```
+merged_files <- merge(metachip_prokka_class_simplified_cleaned, transfer_class, by= "Gene_1")
+
+```
+#### Define taxa groups
+```
+Determining_transfer_agent_1_class <- merged_files %>%
   mutate(Transfer_agent_1_class = case_when(Gene_1_group == 'A' ~ 'Alphaproteobacteria',
                                             Gene_1_group == 'B' ~ 'Chloroflexi',
                                             Gene_1_group == 'C' ~ 'Cyanobacteria',
@@ -65,104 +89,111 @@ Determining_transfer_agent_1_class <- transfer_class %>%
                                             Gene_1_group == 'N' ~ 'Gammaproteobacteria'))
 
 
-View(Determining_transfer_agent_1_class)
+
 
 Determining_transfer_agent_2_class <- Determining_transfer_agent_1_class %>%
   mutate(Transfer_agent_2_class = case_when(Gene_2_group == 'A' ~ 'Alphaproteobacteria',
-                                             Gene_2_group == 'B' ~ 'Chloroflexi',
-                                             Gene_2_group == 'C' ~ 'Cyanobacteria',
-                                             Gene_2_group == 'D' ~ 'BRC1',
-                                             Gene_2_group == 'E' ~ 'Bacteroidetes',
-                                             Gene_2_group == 'F' ~ 'Hydrogenedentes',
-                                             Gene_2_group == 'G' ~ 'Planctomycetes',
-                                             Gene_2_group == 'H' ~ 'Planctomycetes',
-                                             Gene_2_group == 'I' ~ 'Planctomycetes',
-                                             Gene_2_group == 'K' ~ 'Verrucomicrobia',
-                                             Gene_2_group == 'L' ~ 'Myxococcota',
-                                             Gene_2_group == 'M' ~ 'Myxococcota',
-                                             Gene_2_group == 'N' ~ 'Gammaproteobacteria'))
+                                            Gene_2_group == 'B' ~ 'Chloroflexi',
+                                            Gene_2_group == 'C' ~ 'Cyanobacteria',
+                                            Gene_2_group == 'D' ~ 'BRC1',
+                                            Gene_2_group == 'E' ~ 'Bacteroidetes',
+                                            Gene_2_group == 'F' ~ 'Hydrogenedentes',
+                                            Gene_2_group == 'G' ~ 'Planctomycetes',
+                                            Gene_2_group == 'H' ~ 'Planctomycetes',
+                                            Gene_2_group == 'I' ~ 'Planctomycetes',
+                                            Gene_2_group == 'K' ~ 'Verrucomicrobia',
+                                            Gene_2_group == 'L' ~ 'Myxococcota',
+                                            Gene_2_group == 'M' ~ 'Myxococcota',
+                                            Gene_2_group == 'N' ~ 'Gammaproteobacteria'))
 
-View(Determining_transfer_agent_2_class)
 
-Determining_transfer_agent_2_class$total <- 1
+```
+And remove a quaotation that remaied at the end of each product name:
+```
+Determining_transfer_agent_2_class <- Determining_transfer_agent_2_class %>% 
+  mutate(Product = gsub('"', '', Product)) %>% 
+  data.frame
+```
+Your file should now look like:
 
-Determining_transfer_agent_2_class <- Determining_transfer_agent_2_class[,-c(1:8)]
+![](https://i.imgur.com/UVKKYTN.png)
 
-Summarized_df_for_HGT_between_transfers_class <- Determining_transfer_agent_2_class %>%
-  group_by(Transfer_agent_1_class, Transfer_agent_2_class) %>%
-  summarize(Total_HGT_events = sum(total))
+#### Assign certain gene products as stress-related or not ("other")
 
-View(Summarized_df_for_HGT_between_transfers_class)
-
-#add in vertex sizes
-Summarized_df_for_HGT_between_transfers_class_added <- Summarized_df_for_HGT_between_transfers_class %>%
-  mutate(MAG_number = case_when(
-    grepl(pattern = "Bacteroidetes", x = Transfer_agent_2_class) ~ 20,
-    grepl(pattern = "BRC1", x = Transfer_agent_2_class) ~ 1,
-    grepl(pattern = "Chloroflexi", x = Transfer_agent_2_class) ~ 2,
-    grepl(pattern = "Cyanobacteria", x = Transfer_agent_2_class) ~ 3,
-    grepl(pattern = "Hydrogenedentes", x = Transfer_agent_2_class) ~ 1,
-    grepl(pattern = "Myxococcota", x = Transfer_agent_2_class) ~ 4,
-    grepl(pattern = "Planctomycetes", x = Transfer_agent_2_class) ~ 11,
-    grepl(pattern = "Gammaproteobacteria", x = Transfer_agent_2_class) ~ 7,
-    grepl(pattern = "Alphaproteobacteria", x = Transfer_agent_2_class) ~ 27,
-    grepl(pattern = "Verrucomicrobia", x = Transfer_agent_2_class) ~ 8,
-  ))
-View(Summarized_df_for_HGT_between_transfers_class_added)
-
-#tangent for just BRC1 and hydrogenedentes
-
-BRC1_Hydrogenedentes <- Summarized_df_for_HGT_between_transfers_class_added[grepl("Hydrogenedentes|BRC1", Summarized_df_for_HGT_between_transfers_class_added$Transfer_agent_2_class),]
-View(BRC1_Hydrogenedentes)
-BRC1_Hydrogenedentes_added <- BRC1_Hydrogenedentes %>%
-  mutate(MAG_number = case_when(
-    grepl(pattern = "Bacteroidetes", x = Transfer_agent_1_class) ~ 20,
-    grepl(pattern = "BRC1", x = Transfer_agent_1_class) ~ 1,
-    grepl(pattern = "Chloroflexi", x = Transfer_agent_1_class) ~ 2,
-    grepl(pattern = "Cyanobacteria", x = Transfer_agent_1_class) ~ 3,
-    grepl(pattern = "Hydrogenedentes", x = Transfer_agent_1_class) ~ 1,
-    grepl(pattern = "Myxococcota", x = Transfer_agent_1_class) ~ 4,
-    grepl(pattern = "Planctomycetes", x = Transfer_agent_1_class) ~ 11,
-    grepl(pattern = "Gammaproteobacteria", x = Transfer_agent_1_class) ~ 7,
-    grepl(pattern = "Alphaproteobacteria", x = Transfer_agent_1_class) ~ 27,
-    grepl(pattern = "Verrucomicrobia", x = Transfer_agent_1_class) ~ 8,
+```
+Stress_diagnosis <- Determining_transfer_agent_2_class %>%
+  mutate(Environmental_stressor = case_when(
+    grepl(pattern = "Catalase|Catalase-peroxidase|Superoxide dismutase|Thioredoxin|Peroxiredoxin|Glutaredoxin|Rubrerythrin|Glutathione", x = Product) ~ "Oxidative Stress",
+    grepl(pattern = "Arsenate reductase|Manganese transport system ATP-binding protein MntB|Manganese transport system ATP-binding protein|Manganese-binding lipoprotein MntA|Tungstate|Manganese|Arsenical-resistance", x = Product) ~ "Heavy Metal Toxicity",
+    grepl(pattern = "Chaperone protein ClpB|60 kDa chaperonin", x = Product) ~ "Heat Shock",
+    grepl(pattern = "DNA protection during starvation protei|Polyphosphate|Phosphate import|Bacterioferritin", x = Product) ~ "Nutrient limitation",
+    grepl(pattern = "Nitrogen regulatory protein P-II", x = Product) ~ "Nitrogen sensing",
+    grepl(pattern = "Glycine betaine-binding periplasmic protein|Glycine cleavage system H protein|Glycine betaine-binding periplasmic protein|Glycine/sarcosine N-methyltransferase|Osmoregulated proline transporter OpuE|translocating NADH-quinone reductase|Glycine betaine/proline/choline transporter|Osmoprotectant", x = Product) ~ "Osmotic Stress",
+    grepl(pattern = "Multidrug resistance protein MdtB|Efflux pump membrane|multidrug|Virginiamycin A acetyltransferase|N-ethylmaleimide|Lactoylglutathione lyase|Bacitracin", x = Product) ~ "Antitoxicity/ Antibiotic resistance",
+    grepl(pattern = "N-acetylgalactosamine-6-O-sulfatase|Trehalase|Trehalose", x = Product) ~ "EPS-related",
+    grepl(pattern = "UvrABC system protein B", x = Product) ~ "DNA repair",
   ))
 
-BRC1_Hydrogenedentes_added[nrow(BRC1_Hydrogenedentes_added) + 1,] = c(list("Hydrogenedentes", "BRC1", 0, 1))
-BRC1_Hydrogenedentes_added[nrow(BRC1_Hydrogenedentes_added) + 1,] = c(list("BRC1", "Hydrogenedentes", 0, 1))
-
-View(BRC1_Hydrogenedentes_added)
+Stress_diagnosis[is.na(Stress_diagnosis)] <- "Other"
 ```
-![](https://i.imgur.com/rVNtCGk.png)
-
-Now lets make a pretty plot and visualize the data!
+#### Summarize number of each gene in each category 
 ```
+Stress_diagnosis$number <- 1
 
-links <- BRC1_Hydrogenedentes_added[,-c(4)]
-View(links)
-nodes <- BRC1_Hydrogenedentes_added[,-c(2,3)]
-View(nodes)
+summed_stressors<- Stress_diagnosis %>%
+  group_by(Environmental_stressor, Transfer_agent_1_class, Transfer_agent_2_class) %>%
+  summarize(sum_number = sum(number))
+ 
+reduced_summed_stressors_df <- summed_stressors[!grepl("Other", summed_stressors$Environmental_stressor),]
 
-names(nodes)[names(nodes) == "Transfer_agent_1_class"] <- "taxa"
-nodes2 <- nodes[-c(1,3,5,8),]
+###remove any column where the transfer is within the same phylum  
 
-net <- graph_from_data_frame(d=links, vertices=nodes2, directed=F) 
-class(net)
-
-plot(net, vertex.label=NA)
-net <- simplify(net, remove.multiple = F, remove.loops = T) 
-net <- simplify(net, edge.attr.comb=list(Total_HGT_events="sum","ignore"))
-
-View(nodes2)
-View(links)
-
-E(net)$width <- E(net)$Total_HGT_events/10
-V(net)$size <- V(net)$MAG_number
-V(net)$label.color <- "black"
-colrs <- c("orange", "tomato", "green", "cornflowerblue", "red", "gold", "steelblue", "aquamarine3", "pink", "blue")
-plot(net, edge.color="black", vertex.color= colrs) 
+reduced_summed_stressors_df <- reduced_summed_stressors_df[reduced_summed_stressors_df$Transfer_agent_1_class != reduced_summed_stressors_df$Transfer_agent_2_class,]
 
 ```
 
-![](https://i.imgur.com/vzSYM7B.png)
+#### More broad stress "diagnosis"
+```
+Stress_diagnosis_2 <- Stress_diagnosis %>%
+  mutate(Stress_or_not = case_when(
+    grepl(pattern = "Oxidative Stress|Heavy Metal Toxicity|Heat Shock|Nutrient limitation|Osmotic Stress|Nitrogen|Antibiotic|EPS|DNA", x = Environmental_stressor) ~ "Environmental stress-related gene",
+    grepl(pattern = "Other", x = Environmental_stressor) ~ "Other",  
+  ))
 
+Stress_diagnosis_2$number2 <- 1
+
+summed_stressors2<- Stress_diagnosis_2 %>%
+  group_by(Stress_or_not, Transfer_agent_1_class, Transfer_agent_2_class) %>%
+  summarize(sum_number2 = sum(number2))
+
+### remove any column where the transfer is within the same phylum
+summed_stressors2 <- summed_stressors2[summed_stressors2$Transfer_agent_1_class != summed_stressors2$Transfer_agent_2_class,]
+```
+
+#### Create alluvial plots
+```
+alluvial_plot1 <- ggplot(as.data.frame(summed_stressors2),
+                         aes(y = sum_number2, axis1 = Transfer_agent_1_class, axis2 = Transfer_agent_2_class)) + 
+  geom_alluvium(aes(fill = Stress_or_not), width = 1/12) +
+  geom_stratum(width = 1/12, alpha = 1, fill = "black", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Transfer_agent_1_class", "Transfer_agent_2_class"), expand = c(.05, .05)) + 
+  scale_fill_manual(values=c("red", "gray50")) +
+  ylab("All HGT Counts") 
+
+
+alluvial_plot2 <- ggplot(as.data.frame(reduced_summed_stressors_df),
+                         aes(y = sum_number, axis1 = Transfer_agent_1_class, axis2 = Transfer_agent_2_class)) + 
+  geom_alluvium(aes(fill = Environmental_stressor), width = 1/12) +
+  geom_stratum(width = 1/12, alpha = 1, fill = "black", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) + geom_text(stat = "stratum", color="white",label.strata = TRUE,
+                                                                             angle=c(90,90,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0), size=10) +
+  scale_x_discrete(limits = c("Transfer_agent_1_class", "Transfer_agent_2_class"), expand = c(.05, .05)) + 
+  scale_fill_manual(values=c("#EF6A3F", "#A12531", "#00B7BD", "#9CA0D6", "#FFD100", "#B7BF10", "#476AA7", "#145178")) +
+  ylab("Counts of stress-related HGT genes")
+```
+#### Plot alluvial plots 
+```  
+plot_grid(alluvial_plot1, alluvial_plot2, labels = c('A', 'B'))
+```
+![](https://i.imgur.com/X5GGWQh.jpg)
